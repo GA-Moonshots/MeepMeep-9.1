@@ -82,13 +82,10 @@ public final class MecanumDrive {
     private final DownsampledWriter targetPoseWriter = new DownsampledWriter("TARGET_POSE", 50_000_000);
     private final DownsampledWriter driveCommandWriter = new DownsampledWriter("DRIVE_COMMAND", 50_000_000);
     private final DownsampledWriter mecanumCommandWriter = new DownsampledWriter("MECANUM_COMMAND", 50_000_000);
-    public LazyImu lazyImu;
 
 
-    public MecanumDrive(HardwareMap hardwareMap, Pose2d pose) {
+    public MecanumDrive(@NonNull HardwareMap hardwareMap, Pose2d pose) {
         this.pose = pose;
-        this.lazyImu = new LazyImu(hardwareMap, "imu", new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP, RevHubOrientationOnRobot.UsbFacingDirection.RIGHT));
-
         LynxFirmware.throwIfModulesAreOutdated(hardwareMap);
 
         for (LynxModule module : hardwareMap.getAll(LynxModule.class)) {
@@ -122,15 +119,25 @@ public final class MecanumDrive {
         //FlightRecorder.write("MECANUM_DriveConfig", DriveConfig);
     }
 
+    /**
+     *
+     * @param powers An X, Y, theta velocity (such as forward, strafe, turn)
+     */
     public void setDrivePowers(PoseVelocity2d powers) {
+        // Convert from an (X, Y, theta to a dual number form (see https://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation/)
+        // And then use "inverse kinematics" (They're just being pretentious calling it that) to
+        // find what powers the wheels should get.
         MecanumKinematics.WheelVelocities<Time> wheelVels = new MecanumKinematics(1).inverse(
                 PoseVelocity2dDual.constant(powers, 1));
 
+        // This finds the highest amount of power being sent to the wheels, sets maxPowerMag to that value,
+        // then scales the power to a [-1, 1] from (-inf, inf) on lines 141-144.
         double maxPowerMag = 1;
         for (DualNum<Time> power : wheelVels.all()) {
             maxPowerMag = Math.max(maxPowerMag, power.value());
         }
 
+        // Actually set drive powers
         leftFront.setPower(wheelVels.leftFront.get(0) / maxPowerMag);
         leftBack.setPower(wheelVels.leftBack.get(0) / maxPowerMag);
         rightBack.setPower(wheelVels.rightBack.get(0) / maxPowerMag);
