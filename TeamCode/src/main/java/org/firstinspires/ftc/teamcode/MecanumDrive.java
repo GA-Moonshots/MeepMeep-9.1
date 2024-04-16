@@ -11,7 +11,6 @@ import com.acmerobotics.roadrunner.Actions;
 import com.acmerobotics.roadrunner.AngularVelConstraint;
 import com.acmerobotics.roadrunner.DualNum;
 import com.acmerobotics.roadrunner.HolonomicController;
-import com.acmerobotics.roadrunner.MecanumKinematics;
 import com.acmerobotics.roadrunner.MinVelConstraint;
 import com.acmerobotics.roadrunner.MotorFeedforward;
 import com.acmerobotics.roadrunner.PathBuilder;
@@ -23,7 +22,6 @@ import com.acmerobotics.roadrunner.ProfileAccelConstraint;
 import com.acmerobotics.roadrunner.Time;
 import com.acmerobotics.roadrunner.TimeTrajectory;
 import com.acmerobotics.roadrunner.TimeTurn;
-import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
 import com.acmerobotics.roadrunner.TurnConstraints;
 import com.acmerobotics.roadrunner.Twist2dDual;
 import com.acmerobotics.roadrunner.VelConstraint;
@@ -34,8 +32,8 @@ import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.ImuOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.teamcode.config.DriveConfig;
@@ -50,11 +48,8 @@ import java.util.List;
 
 @Config
 public final class MecanumDrive {
-    
 
-    
-
-    public final MecanumKinematics kinematics = new MecanumKinematics(
+    public final Kinematics kinematics = new Kinematics(
             DriveConfig.inPerTick * DriveConfig.trackWidthTicks, DriveConfig.inPerTick / DriveConfig.lateralInPerTick);
 
     public final TurnConstraints defaultTurnConstraints = new TurnConstraints(
@@ -105,7 +100,7 @@ public final class MecanumDrive {
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // TODO: reverse motor directions if needed
-        //   leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightBack.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // TODO: make sure your config has an IMU with this name (can be BNO or BHI)
         //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
@@ -127,7 +122,7 @@ public final class MecanumDrive {
         // Convert from an (X, Y, theta to a dual number form (see https://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation/)
         // And then use "inverse kinematics" (They're just being pretentious calling it that) to
         // find what powers the wheels should get.
-        MecanumKinematics.WheelVelocities<Time> wheelVels = new MecanumKinematics(1).inverse(
+        Kinematics.WheelVelocities<Time> wheelVels = new Kinematics(1).inverse(
                 PoseVelocity2dDual.constant(powers, 1));
 
         // This finds the highest amount of power being sent to the wheels, sets maxPowerMag to that value,
@@ -208,7 +203,7 @@ public final class MecanumDrive {
                     .compute(txWorldTarget, pose, robotVelRobot);
             driveCommandWriter.write(new DriveCommandMessage(command));
 
-            MecanumKinematics.WheelVelocities<Time> wheelVels = kinematics.inverse(command);
+            Kinematics.WheelVelocities<Time> wheelVels = kinematics.inverse(command);
             double voltage = voltageSensor.getVoltage();
 
             final MotorFeedforward feedforward = new MotorFeedforward(DriveConfig.kS,
@@ -300,7 +295,7 @@ public final class MecanumDrive {
                     .compute(txWorldTarget, pose, robotVelRobot);
             driveCommandWriter.write(new DriveCommandMessage(command));
 
-            MecanumKinematics.WheelVelocities<Time> wheelVels = kinematics.inverse(command);
+            Kinematics.WheelVelocities<Time> wheelVels = kinematics.inverse(command);
             double voltage = voltageSensor.getVoltage();
             final MotorFeedforward feedforward = new MotorFeedforward(DriveConfig.kS,
                     DriveConfig.kV / DriveConfig.inPerTick, DriveConfig.kA / DriveConfig.inPerTick);
